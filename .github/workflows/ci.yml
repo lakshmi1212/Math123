@@ -1,66 +1,65 @@
-# This workflow runs pytest-based tests on every push and pull request to main
-#
-# Documentation:
-# - Triggers: On push to main branch and pull requests targeting main
-# - Python version: 3.10
-# - Installs dependencies from requirements.txt (including pytest)
-# - Runs all tests in the tests/ directory
-# - Fails the build if any test fails
-# - Provides a summary of test results in the Actions UI
-#
-# Troubleshooting:
-# - If the workflow fails at 'Install dependencies', ensure requirements.txt exists and is valid.
-# - If tests fail, review the pytest output in the 'Run tests' step.
-# - For Python import errors, check that the src/ directory has an __init__.py if needed.
-# - For further debugging, add 'pytest -v' or 'pytest --maxfail=1 --disable-warnings' to get more verbose output.
-#
-# Optimization/Scalability Recommendations:
-# - For larger test suites, consider using pytest-xdist for parallel execution.
-# - Cache pip dependencies to speed up builds (see commented cache step below).
-# - For advanced reporting, integrate pytest-html or coverage plugins.
-
 name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   test:
+    name: Run Pytest on Python 3.10
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # - name: Set up Python dependency caching (optional, uncomment to enable)
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/.cache/pip
-      #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-pip-
-
       - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install pytest
 
-      - name: Run tests with pytest
+      - name: Run pytest
         run: |
-          pytest tests/
+          pytest tests
 
-      - name: Upload pytest results (if needed)
+      - name: Archive pytest results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: .
+
+      - name: Upload pytest HTML report (if generated)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-html-report
+          path: ./htmlcov/
+
+      - name: Post Failure Troubleshooting Guide
         if: failure()
         run: |
-          echo 'See above for pytest output.'
+          echo "::error::Pytest failed. Please review the job logs and artifacts for details."
+          echo "Troubleshooting tips:"
+          echo "- Check the error tracebacks in the log above."
+          echo "- Ensure all dependencies are listed in requirements.txt."
+          echo "- Run 'pytest tests' locally to reproduce."
+          echo "- For further help, consult the README or contact the DevOps team."
 
-# End of workflow file
+#
+# Documentation:
+# This workflow runs pytest on every push or pull request to the main branch.
+# Python 3.10 is used. All tests under 'tests/' are executed.
+# If any test fails, the workflow fails and artifacts are uploaded for debugging.
+#
+# For more info, see default/README.md or math.json.
+# To optimize, consider caching dependencies and using matrix builds for multiple Python versions.
+# To scale, integrate with test reporting tools or parallelize test execution.
