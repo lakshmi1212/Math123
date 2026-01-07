@@ -1,3 +1,20 @@
+# -----------------------------------------------------------------------------------
+# CI Workflow for Math123: Automated Pytest Execution on Push/PR to main
+# -----------------------------------------------------------------------------------
+#
+# This workflow runs all pytest test cases under the 'tests' directory on every push
+# to the main branch and on pull requests targeting main. It ensures code quality
+# and prevents regressions by failing the pipeline if any test fails.
+#
+# Key Features:
+#   - Triggers on push to main and PRs targeting main
+#   - Uses Python 3.10
+#   - Installs pytest
+#   - Runs all tests in 'tests/'
+#   - Fails the pipeline on test failure
+#   - Provides troubleshooting and optimization tips (see comments below)
+# -----------------------------------------------------------------------------------
+
 name: CI Pipeline
 
 on:
@@ -10,9 +27,8 @@ jobs:
   test:
     name: Run Pytest Suite
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python 3.10
@@ -25,35 +41,39 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
 
-      - name: Run pytest and generate report
+      - name: Run pytest
         run: |
-          pytest tests/ --maxfail=1 --disable-warnings --tb=short --junitxml=pytest-report.xml
-        continue-on-error: false
+          pytest tests
 
-      - name: Upload Pytest Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-report
-          path: pytest-report.xml
+# -----------------------------------------------------------------------------------
+# Validation Report:
+#   - Workflow triggers: [push to main, pull request to main]
+#   - Python version: 3.10
+#   - Dependency: pytest installed
+#   - Test directory: tests/
+#   - Pipeline fails on any test failure
+#   - No source or test files modified by this workflow
+# -----------------------------------------------------------------------------------
 
-      - name: Upload Pytest stdout log
-        if: always()
-        run: |
-          if [ -f .pytest_cache ]; then tar -czf pytest-cache.tar.gz .pytest_cache; fi
-        continue-on-error: true
-      - name: Upload Pytest Cache (optional)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-cache
-          path: pytest-cache.tar.gz
-        continue-on-error: true
+# -----------------------------------------------------------------------------------
+# Troubleshooting Guide:
+#   - If the workflow fails at 'Install dependencies':
+#       - Check for network issues or PyPI availability
+#       - Validate the runner's connectivity
+#   - If pytest fails:
+#       - Review pytest output in the Actions logs for specific errors
+#       - Ensure all required test dependencies are listed in requirements.txt
+#   - If workflow does not trigger:
+#       - Confirm branch names match ('main')
+#       - Ensure the workflow file is committed to '.github/workflows/ci.yml'
+# -----------------------------------------------------------------------------------
 
-    # Documentation and Troubleshooting
-    # - This workflow runs all tests in the 'tests/' directory on pushes and PRs to 'main'.
-    # - If any test fails, the workflow fails.
-    # - Pytest XML report is uploaded as an artifact for review.
-    # - For troubleshooting, download the pytest-report.xml artifact from the workflow run summary.
-    # - Ensure requirements.txt includes all dependencies for your tests.
-    # - For larger projects, consider parallelizing jobs, caching dependencies, and matrix testing for multiple Python versions.
+# -----------------------------------------------------------------------------------
+# Recommendations for Optimization & Scalability:
+#   - Use a requirements.txt for all dependencies and install with 'pip install -r requirements.txt'
+#   - Add caching for pip to speed up dependency installation (see actions/cache)
+#   - Integrate code coverage reporting (e.g., pytest-cov + Codecov)
+#   - Parallelize tests for large suites (e.g., pytest-xdist)
+#   - Add notifications (Slack, email) on failure
+#   - Enforce test and code linting (e.g., flake8, black)
+# -----------------------------------------------------------------------------------
