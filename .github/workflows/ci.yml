@@ -2,18 +2,17 @@ name: CI Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   test:
-    name: Run Pytest on Python 3.10
+    name: Run Pytest Suite
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Python 3.10
@@ -26,40 +25,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest
 
-      - name: Run pytest
+      - name: Run pytest and generate report
         run: |
-          pytest tests
+          pytest tests/ --maxfail=1 --disable-warnings --tb=short --junitxml=pytest-report.xml
+        continue-on-error: false
 
-      - name: Archive pytest results on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results
-          path: .
-
-      - name: Upload pytest HTML report (if generated)
+      - name: Upload Pytest Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-html-report
-          path: ./htmlcov/
+          name: pytest-report
+          path: pytest-report.xml
 
-      - name: Post Failure Troubleshooting Guide
-        if: failure()
+      - name: Upload Pytest stdout log
+        if: always()
         run: |
-          echo "::error::Pytest failed. Please review the job logs and artifacts for details."
-          echo "Troubleshooting tips:"
-          echo "- Check the error tracebacks in the log above."
-          echo "- Ensure all dependencies are listed in requirements.txt."
-          echo "- Run 'pytest tests' locally to reproduce."
-          echo "- For further help, consult the README or contact the DevOps team."
+          if [ -f .pytest_cache ]; then tar -czf pytest-cache.tar.gz .pytest_cache; fi
+        continue-on-error: true
+      - name: Upload Pytest Cache (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-cache
+          path: pytest-cache.tar.gz
+        continue-on-error: true
 
-#
-# Documentation:
-# This workflow runs pytest on every push or pull request to the main branch.
-# Python 3.10 is used. All tests under 'tests/' are executed.
-# If any test fails, the workflow fails and artifacts are uploaded for debugging.
-#
-# For more info, see default/README.md or math.json.
-# To optimize, consider caching dependencies and using matrix builds for multiple Python versions.
-# To scale, integrate with test reporting tools or parallelize test execution.
+    # Documentation and Troubleshooting
+    # - This workflow runs all tests in the 'tests/' directory on pushes and PRs to 'main'.
+    # - If any test fails, the workflow fails.
+    # - Pytest XML report is uploaded as an artifact for review.
+    # - For troubleshooting, download the pytest-report.xml artifact from the workflow run summary.
+    # - Ensure requirements.txt includes all dependencies for your tests.
+    # - For larger projects, consider parallelizing jobs, caching dependencies, and matrix testing for multiple Python versions.
